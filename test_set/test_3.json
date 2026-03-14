@@ -1,0 +1,10 @@
+[
+  {
+    "content": "using ssh.net and the SftpClient class, how can i move a file to an archive directory?",
+    "role": "user"
+  },
+  {
+    "content": "To move a file to an archive directory using `ssh.net` and the `SftpClient` class, you can use the `SftpClient.MoveFile` method. Here's an example:\n```csharp\nusing System;\nusing System.IO;\nusing SSH.Net;\n\nclass Program\n{\n    static void Main(string[] args)\n    {\n        // Create a new SFTP client\n        using (var client = new SftpClient(\"host\"))\n        {\n            // Move the file to the archive directory\n            client.MoveFile(\"source/path/to/file\", \"archive/directory/\");\n        }\n    }\n}\n```\nThis will move the file located at `source/path/to/file` to the `archive/directory/` directory on the remote server.",
+    "role": "assistant"
+  }
+]

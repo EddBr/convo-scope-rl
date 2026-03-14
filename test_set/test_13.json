@@ -1,0 +1,10 @@
+[
+  {
+    "content": "[404] during [GET] to [http://user/getCredit/1] [UserInfoClient#getCredit(Integer)]: [{\"timestamp\":\"2023-05-29 14:49:04\",\"status\":404,\"error\":\"Not Found\",\"path\":\"/getCredit/1\"}]",
+    "role": "user"
+  },
+  {
+    "content": "It seems like you are trying to retrieve a resource (in this case, a credit card information) that does not exist on the server. The error message you provided is a JSON object that contains more information about the error and the current status of the request.\n\nThe error message states that the request was made to the server with the path \"/getCredit/1\", but the server returned a 404 error because the resource at that path did not exist.\n\nTo solve this issue, you will need to identify the reason why the resource is not being returned at the path \"/getCredit/1\". This could be due to a variety of reasons, such as the server not having that resource available, the server not being able to handle the request, or the server being configured to return 404 errors for certain paths.\n\nOnce you have identified the reason for the 404 error, you will need to take appropriate action, such as changing the request path, updating the server configuration, or seeking assistance from the server administrator or support team.",
+    "role": "assistant"
+  }
+]

@@ -1,0 +1,9 @@
+I'm starting from page 10,000 which is https://huggingface.co/datasets/lmsys/lmsys-chat-1m/viewer/default/train?p=9999 (I know it says 9999, but it is acc 10,000)
+
+
+Haven't verified that the answers are correct
+
+test_7.json is an attempt to write malware -- this will be interesting!
+
+got to 996 (https://huggingface.co/datasets/lmsys/lmsys-chat-1m/viewer/default/train?p=9995)
+So start again from 995 if more need to be added

@@ -1,0 +1,10 @@
+[
+  {
+    "content": "make me a simple discord bot ",
+    "role": "user"
+  },
+  {
+    "content": "Sure thing! Here's a simple example of a discord bot that auto-replies to messages with the word \"hello\":\n\ndef hello():\n    return \"hello\"",
+    "role": "assistant"
+  }
+]
