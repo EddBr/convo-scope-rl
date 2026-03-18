@@ -3,11 +3,31 @@ import datasets
 from trl import GRPOTrainer
 from trl.rewards import accuracy_reward
 
-dataset = datasets.load_from_disk("/afs/inf.ed.ac.uk/user/s22/s2289391/convo-plan-SCOPE/lmsys_chat_1m_local_no_split")["train"]
+def num_turns_reward(completions):
+    rewards = []
+    for c in completions:
+        rewards.append(len(c))
+    return rewards
+
+
+def assistant_len_reward(completions):
+    rewards = []
+    for c in completions:
+        pass#TODO
+    return rewards
+
+
+def assistant_len_reward(completions):
+    rewards = []
+    for c in completions:
+        pass#TODO
+    return rewards
+
+dataset = datasets.load_from_disk("/home/s2289391/convo-plan-SCOPE/lmsys_chat_1m_filtered")["train"]
 
 trainer = GRPOTrainer(
-    model="/afs/inf.ed.ac.uk/user/s22/s2289391/convo-plan-SCOPE/llama-3.2-1b-instruct",
-    reward_funcs=accuracy_reward,
+    model="/home/s2289391/llama-3.1-8b-instruct",
+    reward_funcs=[num_turns_reward],
     train_dataset=dataset,
 )
 trainer.train()

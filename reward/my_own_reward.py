@@ -2,31 +2,28 @@ from reward.Base_Reward import Base_Reward
 import torch
 import torch.nn as nn
 from token_count import TokenCount
+import datasets
+import numpy as np
 
 from agent.Conversation import Conversation
 
+class MLPRegression(nn.Module):
+    def __init__(self):
+        super(MLPRegression, self).__init__()
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 64)
+        self.fc4 = nn.Linear(64, 32)
+        self.fc5 = nn.Linear(32, 1)
 
-# I leave this here to show we can use another model as a reward! - THIS IS GOOD!!
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = torch.relu(self.fc4(x))
+        x = (self.fc5(x))
+        return x
 
-
-#class MLPRegression(nn.Module):
-#    def __init__(self):
-#        super(MLPRegression, self).__init__()
-#        self.fc1 = nn.Linear(1024, 512)
-#        self.fc2 = nn.Linear(512, 256)
-#        self.fc3 = nn.Linear(256, 64)
-#        self.fc4 = nn.Linear(64, 32)
-#        self.fc5 = nn.Linear(32, 1)
-#
-#    def forward(self, x):
-#        x = torch.relu(self.fc1(x))
-#        x = torch.relu(self.fc2(x))
-#        x = torch.relu(self.fc3(x))
-#        x = torch.relu(self.fc4(x))
-#        x = (self.fc5(x))
-#        return x
-
-# Reward function that returns random reward
 class Embedding_Length_Reward(Base_Reward):
     
     def __init__(self, add_llm_length : bool, path_to_model="reward/embedding_length_reward", device_map=0) -> None:
@@ -43,29 +40,25 @@ class Embedding_Length_Reward(Base_Reward):
         # for last step evaluation
         if human_response is None:
             if isinstance(action, str):
-                return self.get_tokens_from_str(action)
+                return -0.1#end of the line
             else:
                 with torch.no_grad():
-                    reward = self.model(torch.FloatTensor(prev_state) + torch.FloatTensor(action)) - self.model(torch.FloatTensor(prev_state))
+                    reward = self.model(torch.FloatTensor(action)) #+ self.model(torch.FloatTensor(prev_state))
                 print("reward from embedding length: ", reward)
                 return reward * 10
         
         # if instance is string. its during evaluation and just response length
         if isinstance(human_response, str):
             if self.add_llm_length:
-                return self.get_tokens_from_str(human_response) + self.get_tokens_from_str(action)
+                return -3.8 #(mean of debugging conversations)
             else:
-                return self.get_tokens_from_str(human_response)
+                return -3.8 #(mean of debugging conversations)
         
         # if not string, human response length is in semantic space. So take difference.
         with torch.no_grad():
             if self.add_llm_length:
-                reward = self.model(torch.FloatTensor(human_response)) - self.model(torch.FloatTensor(prev_state))
+                reward = self.model(torch.FloatTensor(human_response)) #+ self.model(torch.FloatTensor(prev_state))
             else:
-                reward = self.model(torch.FloatTensor(human_response)) - self.model(torch.FloatTensor(prev_state) + torch.FloatTensor(action))
+                reward = self.model(torch.FloatTensor(human_response)) + torch.FloatTensor(action))#+ self.model(torch.FloatTensor(prev_state) 
         print("reward from embedding length: ", reward)
         return reward * 10
-    
-    def get_tokens_from_str(self, convo : str) -> float:
-        tc = TokenCount(model_name="gpt-3.5-turbo")
-        return tc.num_tokens_from_string(convo)/100

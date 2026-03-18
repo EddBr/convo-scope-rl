@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-from reward.myllama_stupid import Llama_2_Guard_Reward 
+from reward.rewards_import import *
 import torch
 import datasets
 from tqdm import tqdm
@@ -33,6 +33,7 @@ if __name__ == "__main__":
     for i, conversation in zip(tqdm(range(start, end)), iter(dataset)):
         conversation = conversation['conversation']
         e = []
+        len_convo = len(conversation)
         for j in range(len(conversation)):
             try:
                 e.append(reward.embed(conversation[:j+1]).half())
