@@ -7,9 +7,9 @@ from agent.Conversation import Conversation
 # Use Meta-Llama-Guard-2-8B safe probability as reward model.
 # The reward is the difference between the safe probability of the chat with the human response and the safe probability of the chat without the human response.
 class Llama_2_Guard_Reward(Base_Reward):
-    def __init__(self, model = None, device_map : int = 0, random_projection : int | None = 1024, random_proj_seed = 42) -> None:
+    def __init__(self, model = None, device_map : int = 0, random_projection : int | None = 4096, random_proj_seed = 42) -> None:
         #name_or_path = "meta-llama/Meta-Llama-Guard-2-8B"
-        name_or_path = "/afs/inf.ed.ac.uk/user/s22/s2289391/convo-plan-SCOPE/llama-guard-3-1b"
+        name_or_path = "/home/s2289391/llama-guard-2-8b"
         try:
             assert model.name_or_path == name_or_path
             self.model = model

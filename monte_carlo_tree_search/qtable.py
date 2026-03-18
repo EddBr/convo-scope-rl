@@ -42,13 +42,13 @@ class DeepQFunction(QFunction, DeepAgent):
     """
 
     def __init__(
-        self, alpha=0.001, steps_update=100, cuda = torch.device('cuda:2')
+        self, alpha=0.001, steps_update=100, cuda = torch.device('cuda:0')
     ) -> None:
         raise NotImplementedError("This class should not be used. Are you sure you are using the right QFunction?.")
         self.alpha = alpha
         self.steps_update = steps_update
-        self.tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
-        self.q_network = AutoModelForSequenceClassification.from_pretrained("google-bert/bert-base-uncased", 
+        self.tokenizer = AutoTokenizer.from_pretrained("/home/s2289391/bert-base-uncased")
+        self.q_network = AutoModelForSequenceClassification.from_pretrained("/home/s2289391/bert-base-uncased", 
                                                            num_labels = 1).to(cuda)
         self.optimiser = Adam(self.q_network.parameters(), lr=self.alpha)
         self.cuda = cuda
@@ -288,11 +288,11 @@ class ReplayBufferDeepQFunction(QFunction, DeepAgent):
     """
 
     def __init__(
-        self, alpha=0.1, steps_update=100, cuda = torch.device('cuda:2')
+        self, alpha=0.1, steps_update=100, cuda = torch.device('cuda:0')
     ) -> None:
         self.alpha = alpha
         self.steps_update = steps_update
-        self.model_name = "google-bert/bert-base-uncased"
+        self.model_name = "/home/s2289391/bert-base-uncased"
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.cuda = cuda
         self.reset()

@@ -1,4 +1,3 @@
-
 from reward.Base_Reward import Base_Reward
 import torch
 import torch.nn as nn
@@ -24,7 +23,6 @@ class MLPRegression(nn.Module):
 
 # Reward function that returns random reward
 class Embedding_Length_Reward(Base_Reward):
-    
     def __init__(self, add_llm_length : bool, path_to_model="reward/embedding_length_reward", device_map=0) -> None:
         super().__init__()
         print(f"Loading embedding length model on device {device_map}...")
@@ -62,6 +60,19 @@ class Embedding_Length_Reward(Base_Reward):
         print("reward from embedding length: ", reward)
         return reward * 10
     
-    def get_tokens_from_str(self, convo : str) -> float:
-        tc = TokenCount(model_name="gpt-3.5-turbo")
-        return tc.num_tokens_from_string(convo)/100
+    #def get_tokens_from_str(self, convo : str) -> float:
+    #    tc = TokenCount(model_name="gpt-3.5-turbo")
+    #    return tc.num_tokens_from_string(convo)/100
+
+    def get_tokens_from_str(self, convo: str) -> float:
+        from transformers import AutoTokenizer
+        
+        local_path = "/home/s2289391/llama-3.2-1b"
+        
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(local_path, use_fast=True)
+            return len(tokenizer.encode(convo)) / 100.0
+        except Exception as e:
+            # Fallback: if tokenizer fails
+            return len(convo) / 4 / 100.0
+
