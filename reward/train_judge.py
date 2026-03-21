@@ -26,6 +26,8 @@ class MLPRegression(nn.Module):
 
 dataset = datasets.load_from_disk(f"/home/s2289391/convo-scope-rl/judge/embedding_rewards/lmsys_embeddings_rewards_{end}").with_format("torch")
 
+dataset = dataset.cast_column("reward", datasets.Value("float32"))
+
 print("Creating test/train split")
 split = dataset.train_test_split(test_size=0.2)
 
@@ -46,10 +48,9 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
     model.train()
     train_loss = 0.0
     for batch_no, batch in enumerate(tqdm(train_loader, leave=True)):
-        print("batch",batch)
         inputs = batch["embedding"].to(device)
         #inputs = (inputs - stats["mean"]) / (stats["std"])
-        targets = torch.tensor(batch["reward"]).to(device)#.float().unsqueeze(1)
+        targets = batch["reward"].to(device).float().unsqueeze(1)
 
         optimiser.zero_grad()
         outputs = model(inputs)
@@ -66,11 +67,11 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
         for batch in test_loader:
             inputs = batch["embedding"].to(device)
             #inputs = (inputs - stats["mean"]) / (stats["std"])
-            targets = torch.tensor(batch["reward"]).to(device).float().unsqueeze(1) 
+            targets = batch["reward"].to(device).float().unsqueeze(1) 
 
             outputs = model(inputs)
             val_loss += criterion(outputs, targets).item()
         print("val loss",str(val_loss))
 
-torch.save(model.state_dict(), judge_model.pth)
+torch.save(model.state_dict(), "judge_model.pth")
 print("SAVED JUDGE MODEL")
