@@ -11,6 +11,7 @@ from transition_models.embedding_model import embedding_model_mistral, embedding
 from reward.Embedding_Length_Reward import Embedding_Length_Reward
 from reward.Human_Length_Reward import Human_Length_Reward
 from reward.Llama_2_Guard_Reward import Llama_2_Guard_Reward
+from reward.Cosine_Distance_Reward import Cosine_Distance_Reward
 
 import torch
 from scipy import stats
@@ -118,6 +119,9 @@ if reward_func == "length_both":
     reward_function = Embedding_Length_Reward(add_llm_length=True, device_map=cuda_reward)
 if reward_func == "harmful":
     reward_function = Llama_2_Guard_Reward(device_map=cuda_reward)
+if reward_func == "similarity":
+    reward_function = Cosine_Distance_Reward()
+
 
 agents = []
 agent_type = []

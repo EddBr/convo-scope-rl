@@ -3,11 +3,8 @@ from agent.Conversation import Conversation
 import numpy as np
 
 # Reward function that returns the length of the human response
-class Cosine_Distance_Reward(Base_Reward):
+class Initial_Response_Distance_Reward(Base_Reward):
     def get_reward(self, prev_state : Conversation, action : str, human_response : str) -> float:
-        print("prev_state",prev_state)
-        print("action",action)
-        print("human_response",human_response)
         if human_response is None:
             #End of convo
             return 0
@@ -15,10 +12,14 @@ class Cosine_Distance_Reward(Base_Reward):
             #eval
             # I can't embed - requires booting up model
             return 0
-        dot_prod = np.dot(action, human_response)
-        norm_action = np.linalg.norm(action)
-        norm_human = np.linalg.norm(human_response)
-        similarity = dot_prod / (norm_action * norm_human)
-        dist = 1 - similarity
-        return - (10 * dist) # Negative because the paper found it to be bad
+        if prev_state is None:
+            #Think this means that there was no preceding state
+            dot_prod = np.dot(action, human_response)
+            norm_action = np.linalg.norm(action)
+            norm_human = np.linalg.norm(human_response)
+            similarity = dot_prod / (norm_action * norm_human)
+            dist = 1 - similarity
+            return - (10 * dist) # Negative because the paper found it to be bad
+
+        return 0
     #return 0.01*len(human_response)

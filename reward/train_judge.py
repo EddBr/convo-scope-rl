@@ -5,12 +5,13 @@ import datasets
 import numpy as np
 from tqdm import tqdm
 
-
 dataset = datasets.load_from_disk("/home/s2289391/convo-plan-SCOPE/lmsys_chat_1m_filtered")["train"]
 
 embeddings = datasets.load_from_disk("/home/s2289391/convo-scope-rl/embeddings/lmsys-chat-1m_embeddings_1024_10000").with_format("torch")
 
 labels = []
+
+#stats = {'mean': 3.861505740949584, 'median': 2.0, 'std': 4.193174760561582, 'min': 2, 'max': 136} #Calculated from before
 
 class MLPRegression(nn.Module):
     def __init__(self):
@@ -31,7 +32,7 @@ class MLPRegression(nn.Module):
 
 # This is for number of turns
 def create_reward_data(batch):
-    conversations = batch["conversation"]
+    conversations = batch["embeddings"]
     inputs = []
     targets = []
     for convo in conversations:
@@ -40,10 +41,15 @@ def create_reward_data(batch):
             inputs.append(convo[c])
             targets.append(n - c - 1)
 
-reward_ds = dataset.map(
+    return {
+            "inputs":inputs,
+            "targets":targets
+            }
+
+reward_ds = embeddings.map(
         create_reward_data,
         batched=True,
-        remove_columns=dataset.column_names,
+        remove_columns=embeddings.column_names,
         num_proc=16
         )
 
@@ -56,34 +62,13 @@ test_loader = torch.utils.data.DataLoader(split["test"],batch_size=2048, shuffle
 print("Loaded train/test split")
 
 
-def normalize_dataset(batch, input_mean, input_std, output_mean, output_std):
-    inputs = (batch['inputs'] - input_mean) / input_std
-    outputs = (batch['outputs'] - output_mean) / output_std
-    return {'inputs': inputs, 'outputs': outputs}
-
-#stats = {'mean': 3.861505740949584, 'median': 2.0, 'std': 4.193174760561582, 'min': 2, 'max': 136}
-#    
-#sums_dataset = hf_dataset["train"].map(
-#        calculate_mean, 
-#        remove_columns=hf_dataset["train"].column_names, batched=True, batch_size=1000, 
-#        )
-#
-#
-#
-#train_loader = train_loader.map(train_loader, fn_kwargs={
-##    'input_mean': stats["mean"], 'input_std': stats["std"], 'output_mean': output_mean, 'output_std': output_std
-#    }, batched=True, batch_size=10000)
-#
-#test_loader = test_loader.map(normalized_test, fn_kwargs={
-#    'input_mean': input_mean, 'input_std': input_std, 'output_mean': output_mean, 'output_std': output_std
-##    }, batched=True, batch_size=10000)
 
 device = "cuda"
 model = MLPRegression().to(device)
-optimiser = torch.optim.Adam(model.parameters(),lr=1e-3)
+optimiser = torch.optim.Adam(model.parameters(),lr=1e-4)
 criterion = nn.MSELoss()
 
-num_epochs = 10
+num_epochs = 100
 print("Beginning Training")
 for epoch in tqdm(range(0,num_epochs),leave=True):
     print("Epoch:", str(epoch))
@@ -91,13 +76,14 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
     train_loss = 0.0
     for batch_no, batch in enumerate(tqdm(train_loader, leave=True)):
         inputs = batch["inputs"].to(device)
-        outputs = batch["outputs"].to(device)
+        inputs = (inputs - stats["mean"]) / (stats["std"])
+        targets = batch["targets"].to(device).float().unsqueeze(1)
 
         optimiser.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         loss.backward()
-        optimizer.step()
+        optimiser.step()
 
         train_loss += loss.item()
     print("train loss",str(train_loss))
@@ -107,7 +93,8 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
         val_loss = 0.0
         for batch in test_loader:
             inputs = batch["inputs"].to(device)
-            outputs = batch["outputs"].to(device)
+            inputs = (inputs - stats["mean"]) / (stats["std"])
+            targets = batch["targets"].to(device).float().unsqueeze(1) 
 
             outputs = model(inputs)
             val_loss += criterion(outputs, targets).item()
