@@ -6,36 +6,35 @@ import os
 import re
 from openai import OpenAI
 
-client = OpenAI(base_url="http://saxa.inf.ed.ac.uk:8000/v1", api_key="token")
+client = OpenAI(base_url="http://landonia11.inf.ed.ac.uk:8000/v1", api_key="token")
 
 print("loading dataset")
 dataset = load_from_disk("/home/s2289391/convo-plan-SCOPE/lmsys_chat_1m_filtered")["train"]
 print("loaded dataset")
-#embeddings = load_from_disk("/home/s2289391/convo-scope-rl/embeddings/lmsys-chat-1m_embeddings_1024_10000").with_format("torch")
 
 start = 0
-end = 100#00
+end = 130_000
 
 
 embeddings = []
 for i, conversation in zip(tqdm(range(start, end)), iter(dataset)):
     e = []
     conversation = conversation['conversation']
-    for j in range(len(conversation)):
+    for j in range(1,len(conversation),2):
         try:
             # Here is where you make a request to the LLM
             c = conversation[:j+1] # this does up to j
             llm_resp = client.chat.completions.create(
-                    model="llama-3.2-3b",
+                    model="llama-3.1-8b-instruct",
                     messages = [{"role":"system","content":"""### Role
 You are an impartial judge evaluating the quality of an AI assistant's response.
 
 ### Conversation History
-                                 """+str(c[:len(c)-1])+"""
+                                 """+str(c[:j])+"""
 
 ### Current Turn
-User: """+str(c[len(c)-2]["content"])+"""
-Assistant: """+str(c[len(c)-1]["content"])+"""
+User: """+str(c[j-1]["content"])+"""
+Assistant: """+str(c[j]["content"])+"""
 
 ### Instructions
 Output your response as a singular number between 1 and 5
@@ -64,7 +63,6 @@ Output your response as a singular number between 1 and 5
                 print("couldn't find score")
                 print(llm_resp.choices[0].message.content)
                 embeddings.append(3.5)
-            print(score)
 
         except Exception as g:
             print("Failed to judge!")

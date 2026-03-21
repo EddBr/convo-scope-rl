@@ -1,11 +1,12 @@
-import torch
-import torch.nn as nn
-from token_count import TokenCount
-import datasets
-import numpy as np
+from datasets import load_from_disk, Dataset
 from tqdm import tqdm
+import torch.nn as nn
 
-end = 10_000
+start = 0
+end = 100#130_000
+
+
+dataset = load_from_disk("judgements/lmsys_embeddings_rewards_"+end)
 
 class MLPRegression(nn.Module):
     def __init__(self):
@@ -24,15 +25,33 @@ class MLPRegression(nn.Module):
         x = (self.fc5(x))
         return x
 
-dataset = datasets.load_from_disk(f"/home/s2289391/convo-scope-rl/judge/embedding_rewards/lmsys_embeddings_rewards_{end}").with_format("torch")
 
-print("Creating test/train split")
-split = dataset.train_test_split(test_size=0.2)
+def create_reward_data(batch):
+    conversations = batch["embeddings"]
+    inputs = []
+    targets = []
+    for convo in conversations:
+        n = len(convo)
+        for c in range(1,n,2):
+            inputs.append(convo[c])
+            targets.append(n - c - 1)
 
-train_loader = torch.utils.data.DataLoader(split["train"],batch_size=2048, shuffle=True)
-test_loader = torch.utils.data.DataLoader(split["test"],batch_size=2048, shuffle=True)
+    return {
+            "inputs":inputs,
+            "targets":targets
+            }
 
-print("Loaded train/test split")
+dataset = dataset.select(end)
+
+
+
+# Batching is more efficient. Lemme do it stupid first
+reward_ds = dataset.map(
+        create_reward_data,
+        batched=True,
+        remove_columns=embeddings.column_names,
+        num_proc=16
+        )
 
 device = "cuda"
 model = MLPRegression().to(device)
@@ -46,10 +65,9 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
     model.train()
     train_loss = 0.0
     for batch_no, batch in enumerate(tqdm(train_loader, leave=True)):
-        print("batch",batch)
-        inputs = batch["embedding"].to(device)
-        #inputs = (inputs - stats["mean"]) / (stats["std"])
-        targets = torch.tensor(batch["reward"]).to(device)#.float().unsqueeze(1)
+        inputs = batch["inputs"].to(device)
+        inputs = (inputs - stats["mean"]) / (stats["std"])
+        targets = batch["targets"].to(device).float().unsqueeze(1)
 
         optimiser.zero_grad()
         outputs = model(inputs)
@@ -64,13 +82,10 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
     with torch.no_grad():
         val_loss = 0.0
         for batch in test_loader:
-            inputs = batch["embedding"].to(device)
-            #inputs = (inputs - stats["mean"]) / (stats["std"])
-            targets = torch.tensor(batch["reward"]).to(device).float().unsqueeze(1) 
+            inputs = batch["inputs"].to(device)
+            inputs = (inputs - stats["mean"]) / (stats["std"])
+            targets = batch["targets"].to(device).float().unsqueeze(1) 
 
             outputs = model(inputs)
             val_loss += criterion(outputs, targets).item()
         print("val loss",str(val_loss))
-
-torch.save(model.state_dict(), judge_model.pth)
-print("SAVED JUDGE MODEL")
