@@ -8,7 +8,9 @@ Merge judgement rewards with embeddings in judge/emb+rewards.py
 
 Train reward model with reward/train_judge.py
 
-Evaluate model with XXX
+Train transition function with train/train_transition.py
+
+Evaluate model with serve.sh
 
 
 
