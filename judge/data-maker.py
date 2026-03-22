@@ -20,6 +20,7 @@ embeddings = []
 for i, conversation in zip(tqdm(range(start, end)), iter(dataset)):
     e = []
     conversation = conversation['conversation']
+    j = 0
     for j in range(1,len(conversation),2):
         try:
             # Here is where you make a request to the LLM
@@ -58,7 +59,7 @@ Output your response as a singular number between 1 and 5
             score = llm_resp.choices[0].message.content
             if score:
                 #embeddings.append(score.group())
-                embeddings.append(score)
+                embeddings.append(float(score))
             else:
                 print("couldn't find score")
                 print(llm_resp.choices[0].message.content)
@@ -67,6 +68,9 @@ Output your response as a singular number between 1 and 5
         except Exception as g:
             print("Failed to judge!")
             print(g)
+            #Need to do this to account for missing j
+            for x in range(int((len(conversation)-j)/2)):
+                embeddings.append(3.5)
             break
 
 dataset = Dataset.from_dict(

@@ -1,4 +1,3 @@
-
 import yaml
 
 from typing import List, Tuple

@@ -13,7 +13,7 @@ human_sim:
 
     # Beam search params
     num_beams: 10              # Number of beams to consider
-    num_beam_groups: 5        # Number of beam groups (tries to encourage diversity between groups). Must be leq num_beams
+    num_beam_groups: 10        # Number of beam groups (tries to encourage diversity between groups). Must be leq num_beams
     num_return_sequences: 5   # Number of samples to return. Must be leq num_beams
     diversity_penalty: 1.0    # Subtracted from a beam’s score if it generates a token same as any beam from other group at a particular time
 

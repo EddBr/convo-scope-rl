@@ -12,6 +12,7 @@ from reward.Embedding_Length_Reward import Embedding_Length_Reward
 from reward.Human_Length_Reward import Human_Length_Reward
 from reward.Llama_2_Guard_Reward import Llama_2_Guard_Reward
 from reward.Cosine_Distance_Reward import Cosine_Distance_Reward
+from reward.LLM_Judge_Reward import LLM_Judge_Reward
 
 import torch
 from scipy import stats
@@ -121,6 +122,8 @@ if reward_func == "harmful":
     reward_function = Llama_2_Guard_Reward(device_map=cuda_reward)
 if reward_func == "similarity":
     reward_function = Cosine_Distance_Reward()
+if reward_func == "judge":
+    reward_function = LLM_Judge_Reward()
 
 agents = []
 agent_type = []
@@ -173,6 +176,10 @@ if agent_ == "semantic_online":
             reward_function = Embedding_Length_Reward(add_llm_length=False)
         elif reward_func == "length_both":
             reward_function = Embedding_Length_Reward(add_llm_length=True)
+        elif reward_function == "similarity":
+            reward_function = Cosine_Distance_Reward()
+        elif reward_function == "judge":
+            reward_function = LLM_Judge_Reward()
         transition_model = TransitionModel_type(noise=0.005, cuda=cuda_transition, transition_model_dir=args["transition_model_dir"]) # need to convert to cuda. Now using CPU (does it matter?).
         semanticqfunction = DeepQSemanticFunction(dim=dim, alpha=lr, cuda=torch.device(cuda_q_embedding), steps_update=50) # more sophisticated Q function?
         pure_online_agent_semantic_agent = OnlineAgent(semanticqfunction, runtime_mcts_search_depth, runtime_mcts_timeout, llm_agent, human_sim, reward_function, search_space="semantic_space", transition_model=transition_model, embedding_model=embed_model) # online SEMANTIC space agent

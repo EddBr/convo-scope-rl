@@ -10,6 +10,7 @@ class Llama_2_Guard_Reward(Base_Reward):
     def __init__(self, model = None, device_map : int = 0, random_projection : int | None = 4096, random_proj_seed = 42) -> None:
         #name_or_path = "meta-llama/Meta-Llama-Guard-2-8B"
         name_or_path = "/home/s2289391/llama-guard-2-8b"
+        #name_or_path = "/home/s2289391/llama-guard-3-1b"
         try:
             assert model.name_or_path == name_or_path
             self.model = model
@@ -101,6 +102,9 @@ class Llama_2_Guard_Reward(Base_Reward):
         chat = [(i.create_chat() if isinstance(i, Conversation) else i) for i in chat]
         #print("after formatting: ", chat)
         input_ids = self.tokenizer.apply_chat_template(chat, return_tensors="pt").to(self.model.device)
+        
+        # I'm wary of using this -- I didn't need to before
+        #input_ids = input_ids['input_ids'] if isinstance(input_ids, dict) else input_ids
 
         # Append unsafe prompt to the input_ids
         input_ids_unsafe = torch.cat((input_ids, self.unsafe_prompt.repeat(input_ids.shape[0],1)), dim=1)

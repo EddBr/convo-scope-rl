@@ -9,6 +9,8 @@ from agent.Model import Model
 from reward.Base_Reward import Base_Reward
 from reward.Llama_2_Guard_Reward import Llama_2_Guard_Reward
 from reward.Embedding_Length_Reward import Embedding_Length_Reward
+from reward.Cosine_Distance_Reward import Cosine_Distance_Reward
+from reward.LLM_Judge_Reward import LLM_Judge_Reward
 
 from transition_models.transition_model import TransitionModelMOE
 import random
@@ -168,7 +170,9 @@ class OnlineAgent(LearntAgent):
         self.embedding_model = embedding_model
         if isinstance(self.reward_function_for_mcts, Llama_2_Guard_Reward):
             self.reward_from_embedding = self.reward_function_for_mcts.get_safe_prob_from_embedding
-        elif isinstance(self.reward_function_for_mcts, Embedding_Length_Reward):
+        if isinstance(self.reward_function_for_mcts, Embedding_Length_Reward):
+            self.reward_from_embedding = lambda x: self.reward_function_for_mcts.model(x).detach().cpu()
+        if isinstance(self.reward_function_for_mcts, LLM_Judge_Reward):
             self.reward_from_embedding = lambda x: self.reward_function_for_mcts.model(x).detach().cpu()
     
     def generate_action(self, state : conversation_state, results = {}, seed=None, **kwargs):
