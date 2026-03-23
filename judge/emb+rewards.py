@@ -6,21 +6,27 @@ start = 0
 end = 130_000
 
 embeddings = load_from_disk(f"/home/s2289391/convo-scope-rl/embeddings/lmsys-chat-1m_embeddings_1024_{end}").with_format("torch")
-judge_rewards = load_from_disk(f"/home/s2289391/convo-scope-rl/judge/judgements/lmsys-{end}").with_format("torch")
+judge_rewards = load_from_disk(f"/home/s2289391/convo-scope-rl/judge/judgements/lmsys_130000_final").with_format("torch")
 
 e = []
 r = []
 counter = 0
 
+# The issue is that I have purposefully cut off some of the rewards, it does 130,000
 for i, embedding in zip(tqdm(range(start, end)), iter(embeddings)):
-    embedding = embedding['embeddings']
-    z = 0
-    for j in range(1,len(embedding),2):
-        e.append(embedding[j])
-        r.append(judge_rewards["judgements"][counter+z])
-        z += 1
+    try:
+        embedding = embedding['embeddings']
+        z = 0
+        for j in range(1,len(embedding),2):
+            r.append(judge_rewards["judgements"][counter+z])
+            e.append(embedding[j])
+            z += 1
 
-    counter += z
+        counter += z
+    except:
+        print("Reached the cut-off")
+        print("i",str(i))
+        break
 
 dataset_dict = {
         "embedding": e,
