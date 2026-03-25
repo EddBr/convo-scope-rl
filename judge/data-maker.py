@@ -5,6 +5,8 @@ from litellm import completion
 import os
 import re
 from openai import OpenAI
+import sys
+import os
 
 client = OpenAI(base_url="http://landonia11.inf.ed.ac.uk:8000/v1", api_key="token")
 
@@ -12,9 +14,10 @@ print("loading dataset")
 dataset = load_from_disk("/home/s2289391/convo-plan-SCOPE/lmsys_chat_1m_filtered")["train"]
 print("loaded dataset")
 
-start = 0
-end = 130_000
+start = int(sys.argv[1])
+end = int(sys.argv[2])
 
+dataset = dataset.select(range(start, end))
 
 embeddings = []
 for i, conversation in zip(tqdm(range(start, end)), iter(dataset)):
@@ -58,8 +61,10 @@ Output your response as a singular number between 1 and 5
             #score = re.search(r"[1-5]",llm_resp.choices[0].message.content)
             score = llm_resp.choices[0].message.content
             if score:
-                #embeddings.append(score.group())
-                embeddings.append(float(score))
+                try:
+                    embeddings.append(float(score))
+                except:
+                    embeddings.append(3.5)
             else:
                 print("couldn't find score")
                 print(llm_resp.choices[0].message.content)
@@ -67,9 +72,15 @@ Output your response as a singular number between 1 and 5
 
         except Exception as g:
             print("Failed to judge!")
+            print("i",i)
+            print("j",j)
+            print("conversation",conversation)
             print(g)
             #Need to do this to account for missing j
-            for x in range(int((len(conversation)-j)/2)):
+            total_turns = len(range(1,len(conversation),2))
+            completed =  (j-1) // 2
+            missing = total_turns - completed
+            for x in range(missing):
                 embeddings.append(3.5)
             break
 
@@ -78,6 +89,9 @@ dataset = Dataset.from_dict(
             "judgements": embeddings
             }
         )
+os.makedirs("batch", exist_ok=True)
+dataset.save_to_disk(f"shards/j_{start}_{end}")
 
-os.makedirs(f"judgements", exist_ok=True)
-dataset.save_to_disk(f"judgements/lmsys-{end}")
+
+#os.makedirs(f"judgements", exist_ok=True)
+#dataset.save_to_disk(f"judgements/lmsys-{end}")
