@@ -3,10 +3,10 @@ from tqdm import tqdm
 import torch.nn as nn
 
 start = 0
-end = 100#130_000
+end = 130_000
 
 
-dataset = load_from_disk("judgements/lmsys_embeddings_rewards_"+end)
+dataset = load_from_disk("judgements/lmsys_130000_final")
 
 class MLPRegression(nn.Module):
     def __init__(self):

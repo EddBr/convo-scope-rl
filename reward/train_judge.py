@@ -5,7 +5,7 @@ import datasets
 import numpy as np
 from tqdm import tqdm
 
-end = 10_000
+end = 130_000
 
 class MLPRegression(nn.Module):
     def __init__(self):
@@ -25,6 +25,8 @@ class MLPRegression(nn.Module):
         return x
 
 dataset = datasets.load_from_disk(f"/home/s2289391/convo-scope-rl/judge/embedding_rewards/lmsys_embeddings_rewards_{end}").with_format("torch")
+dataset = dataset.select(range(125_000))#This prevents training on the test data
+print(dataset.column_names)
 
 dataset = dataset.cast_column("reward", datasets.Value("float32"))
 
@@ -73,5 +75,5 @@ for epoch in tqdm(range(0,num_epochs),leave=True):
             val_loss += criterion(outputs, targets).item()
         print("val loss",str(val_loss))
 
-torch.save(model.state_dict(), "judge_model.pth")
+torch.save(model.state_dict(), "judge_model_final.pth")
 print("SAVED JUDGE MODEL")
