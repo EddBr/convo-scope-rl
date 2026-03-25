@@ -126,6 +126,26 @@ if reward_func == "judge":
     reward_function = LLM_Judge_Reward()
 
 
+def eval_similarities(emb):
+    out = []
+    for e in range(1,len(emb),2):
+        human_response = emb[e-1]
+        action = emb[e]
+        dot_prod = np.dot(action, human_response)
+        norm_action = np.linalg.norm(action)
+        norm_human = np.linalg.norm(human_response)
+        similarity = dot_prod / (norm_action * norm_human)
+        dist = 1 - similarity
+        out.append(dist)
+    return out
+
+def eval_embeddings(convo):
+    out = []
+    for c in convo:
+        e = embedding_model_llama(model=None, cuda=torch.device(cuda_q_embedding)).embed(c)
+        out.append(e)
+    return out
+
 agents = []
 agent_type = []
 
@@ -219,6 +239,10 @@ for agent,type in zip(agents, agent_type):
     for starters in convo_generated:
         print("input conversation starter: ", starters, "\n")
         print("conversation generated: ", convo_generated[starters])
+
+    similarities = eval_similarities(eval_embeddings(convo_generated))
+    print(similarities)
+
     all_results_dict.append(results)
 
 import lz4.frame
@@ -232,6 +256,10 @@ import csv
 with open(evaluation_output+'.csv', 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerows(all_results)
+
+with open(evaluation_output+'convos.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerows(convo_generated)
 
 import pickle 
 with open(evaluation_output+'.pkl', 'wb') as f:

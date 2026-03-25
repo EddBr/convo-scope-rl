@@ -125,6 +125,26 @@ if reward_func == "similarity":
 if reward_func == "judge":
     reward_function = LLM_Judge_Reward()
 
+def eval_similarities(emb):
+    out = []
+    for e in range(1,len(emb),2):
+        human_response = emb[e-1]
+        action = emb[e]
+        dot_prod = np.dot(action, human_response)
+        norm_action = np.linalg.norm(action)
+        norm_human = np.linalg.norm(human_response)
+        similarity = dot_prod / (norm_action * norm_human)
+        dist = 1 - similarity
+        out.append(dist)
+    return out
+
+def eval_embeddings(convo):
+    out = []
+    for c in convo:
+        e = embedding_model_llama(model=None, cuda=torch.device(cuda_q_embedding)).embed(c)
+        out.append(e)
+    return out
+
 agents = []
 agent_type = []
 
@@ -202,9 +222,38 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 random.seed(seed)
 
+
+avg_time_taken = 0
+
 # create the mdp environment for evaluation
 evaluation_conversation_env = conversation_environment(human_eval, llm_agent, "", max_depth=evaluation_action_depth*2, reward_function=reward_function)
-for agent,type in zip(agents, agent_type):
-    best_response, possible_actions, rewards = run_evaluations_singular(agent, type, evaluation_conversation_env, evaluation_starters[0], context_list = human_prompts, human_descriptions = human_descriptions, index = list(range(start_index, end_index)), seed = seed, output_file=evaluation_output)
-    print(possible_actions)
-    print(rewards)
+for eval_start in evaluation_starters:
+    for agent,type in zip(agents, agent_type):
+        start = time.time()
+        best_response, possible_actions, rewards = run_evaluations_singular(agent, type, evaluation_conversation_env, eval_start, context_list = human_prompts, human_descriptions = human_descriptions, index = list(range(start_index, end_index)), seed = seed, output_file=evaluation_output)
+        time_taken = time.time()-start
+        print("Agent:", str(agent_))
+        print("Starter:",eval_start)
+        #print(possible_actions)
+        #print(rewards)
+        print("Time taken:",str(time_taken))
+        avg_time_taken += time_taken
+
+
+        initial_state = conversation_state((evaluation_starter), Conversation(evaluation_starter))
+        initial_state.depth = 1
+
+        starting_convo_semantics = self.embedding_model.embed(initial_state.conversation).cpu().detach().numpy()
+
+        
+        best_response_state = conversation_state((best_response), Conversation(action))
+        best_response_state.depth = 1
+
+        best_response_convo_semantics = self.embedding_model.embed(action.conversation).cpu().detach().numpy()
+
+
+        similarities = eval_similarities(eval_embeddings([starting_convo_semantics, best_response_convo_semantics]))
+        print(similarities)
+
+avg_time_taken = avg_time_taken / len(evaluation_starters)
+print("Average Time Taken: ",avg_time_taken)
