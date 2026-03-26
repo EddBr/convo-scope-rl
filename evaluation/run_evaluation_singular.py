@@ -125,18 +125,15 @@ if reward_func == "similarity":
 if reward_func == "judge":
     reward_function = LLM_Judge_Reward()
 
-def eval_similarities(emb):
-    out = []
-    for e in range(1,len(emb),2):
-        human_response = emb[e-1]
-        action = emb[e]
-        dot_prod = np.dot(action, human_response)
-        norm_action = np.linalg.norm(action)
-        norm_human = np.linalg.norm(human_response)
-        similarity = dot_prod / (norm_action * norm_human)
-        dist = 1 - similarity
-        out.append(dist)
-    return out
+def eval_similarities(a,b):
+    human_response = a
+    action = b
+    dot_prod = np.dot(action, human_response)
+    norm_action = np.linalg.norm(action)
+    norm_human = np.linalg.norm(human_response)
+    similarity = dot_prod / (norm_action * norm_human)
+    dist = 1 - similarity
+    return dist
 
 def eval_embeddings(convo):
     out = []
@@ -224,7 +221,10 @@ random.seed(seed)
 
 
 avg_time_taken = 0
+avg_similarity = 0
+avg_length = 0
 
+embed_model = embedding_model_llama(model=None, cuda=torch.device(cuda_q_embedding))
 # create the mdp environment for evaluation
 evaluation_conversation_env = conversation_environment(human_eval, llm_agent, "", max_depth=evaluation_action_depth*2, reward_function=reward_function)
 for eval_start in evaluation_starters:
@@ -240,20 +240,31 @@ for eval_start in evaluation_starters:
         avg_time_taken += time_taken
 
 
-        initial_state = conversation_state((evaluation_starter), Conversation(evaluation_starter))
+        initial_state = conversation_state((eval_start), Conversation(eval_start))
         initial_state.depth = 1
 
-        starting_convo_semantics = self.embedding_model.embed(initial_state.conversation).cpu().detach().numpy()
+        starting_convo_semantics = embed_model.embed(initial_state.conversation).cpu().detach().numpy()
 
+        avg_length += len(best_response)
         
-        best_response_state = conversation_state((best_response), Conversation(action))
+        best_response_state = conversation_state((best_response), Conversation(best_response))
         best_response_state.depth = 1
 
-        best_response_convo_semantics = self.embedding_model.embed(action.conversation).cpu().detach().numpy()
+        best_response_convo_semantics = embed_model.embed(best_response_state.conversation).cpu().detach().numpy()
 
 
-        similarities = eval_similarities(eval_embeddings([starting_convo_semantics, best_response_convo_semantics]))
-        print(similarities)
+        similarities = eval_similarities(starting_convo_semantics, best_response_convo_semantics)
+        print("Similarity:", similarities)
+        avg_similarity += similarities
+
+print ("Number of Conversations (n): ",len(evaluation_starters))
 
 avg_time_taken = avg_time_taken / len(evaluation_starters)
 print("Average Time Taken: ",avg_time_taken)
+
+avg_similarity = avg_similarity / len(evaluation_starters)
+print("Average Similarity: ",avg_similarity)
+
+
+avg_similarity = avg_length / len(evaluation_starters)
+print("Average Length (chars): ",avg_length)

@@ -13,6 +13,7 @@ from reward.Human_Length_Reward import Human_Length_Reward
 from reward.Llama_2_Guard_Reward import Llama_2_Guard_Reward
 from reward.Cosine_Distance_Reward import Cosine_Distance_Reward
 from reward.LLM_Judge_Reward import LLM_Judge_Reward 
+from agent.Conversation import Conversation
 
 import torch
 from scipy import stats
@@ -27,6 +28,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from datasets import load_from_disk
 from itertools import repeat
+import re
 
 import logging
 [logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict if "transformers" in logging.getLogger(name).name.lower()]
@@ -100,11 +102,11 @@ if os.path.isfile(file_name):
     evaluation_starters = evaluation_starters[start_index: end_index]
 elif os.path.isdir(evaluation_data):
     tmp = load_from_disk(evaluation_data)
-    evaluation_starters = [i[0].strip() for i in tmp["conversations"]]
+    evaluation_starters = [i[0]["content"].strip() for i in tmp["conversation"]]
     end_index = min(end_index, len(evaluation_starters)) if end_index > 0 else len(evaluation_starters)
     evaluation_starters = evaluation_starters[start_index: end_index]
     if args["use_icl"]:
-        human_prompts = [[j.strip() for j in i[::2]] for i in tmp["conversations"]]
+        human_prompts = [[j.strip() for j in i[::2]] for i in tmp["conversation"]]
         human_prompts = human_prompts[start_index: end_index]
     if args["use_descriptions"]:
         human_descriptions = [[i] for i in pd.read_pickle(evaluation_data + "/descriptions.pkl")["filtered_description"]]
@@ -124,27 +126,6 @@ if reward_func == "similarity":
     reward_function = Cosine_Distance_Reward()
 if reward_func == "judge":
     reward_function = LLM_Judge_Reward()
-
-
-def eval_similarities(emb):
-    out = []
-    for e in range(1,len(emb),2):
-        human_response = emb[e-1]
-        action = emb[e]
-        dot_prod = np.dot(action, human_response)
-        norm_action = np.linalg.norm(action)
-        norm_human = np.linalg.norm(human_response)
-        similarity = dot_prod / (norm_action * norm_human)
-        dist = 1 - similarity
-        out.append(dist)
-    return out
-
-def eval_embeddings(convo):
-    out = []
-    for c in convo:
-        e = embedding_model_llama(model=None, cuda=torch.device(cuda_q_embedding)).embed(c)
-        out.append(e)
-    return out
 
 agents = []
 agent_type = []
@@ -223,6 +204,8 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 random.seed(seed)
 
+
+embed_model = embedding_model_llama(model=None, cuda=torch.device(cuda_q_embedding))
 # create the mdp environment for evaluation
 evaluation_conversation_env = conversation_environment(human_eval, llm_agent, "", max_depth=evaluation_action_depth*2, reward_function=reward_function)
 all_results = []
@@ -236,12 +219,66 @@ for agent,type in zip(agents, agent_type):
     time_taken = time.time()-start
     results["time_taken_for_agent_type"] = time_taken
     print("time taken for all trials:", time_taken)
+    similarities_human_llm = []
+    similarities_llm_llm = []
+    no_turns = []
+    convo_chars = []
     for starters in convo_generated:
-        print("input conversation starter: ", starters, "\n")
-        print("conversation generated: ", convo_generated[starters])
+        print("convo_generated is Conversation?",isinstance(convo_generated, Conversation))
+        print("convo_generated is list?",isinstance(convo_generated, list))
+        print("convo_generated[starters] is Conversation?",isinstance(convo_generated[starters], Conversation))
+        print("convo_generated[starters] is list?",isinstance(convo_generated[starters], list))
+        convo = convo_generated[starters][0]
 
-    similarities = eval_similarities(eval_embeddings(convo_generated))
-    print(similarities)
+        no_turns.append(len(convo.full_convo))
+        print("number of turns",no_turns)
+        
+        avg_convo_chars = sum([len(x) for x in convo.full_convo]) / len(convo.full_convo)
+        convo_chars.append(avg_convo_chars)
+
+        emb = []
+        for c in convo.full_convo:
+            print("this is c:",c)
+            emb.append(embed_model.embed(c).cpu().detach().numpy())
+
+        print("embeddings:",emb)
+
+        sims_human_llm = []
+        for e in range(1,len(emb),2):
+            human_response = emb[e-1]
+            action = emb[e]
+            dot_prod = np.dot(action, human_response)
+            norm_action = np.linalg.norm(action)
+            norm_human = np.linalg.norm(human_response)
+            similarity = dot_prod / (norm_action * norm_human)
+            dist = 1 - similarity
+            sims_human_llm.append(dist)
+
+        avg_sims_human_llm = sum(sims_human_llm)/len(sims_human_llm)
+        print("Average similarity in this conversation (human-llm) was:", str(avg_sims_human_llm))
+        similarities_human_llm.append(avg_sims_human_llm)
+
+        sims_llm_llm = []
+        for e in range(3,len(emb),2):
+            llm_1 = emb[e-2]
+            llm_2 = emb[e]
+            dot_prod = np.dot(llm_2, llm_1)
+            norm_action = np.linalg.norm(llm_2)
+            norm_human = np.linalg.norm(llm_1)
+            similarity = dot_prod / (norm_action * norm_human)
+            dist = 1 - similarity
+            sims_llm_llm.append(dist)
+
+        avg_sims_llm_llm = sum(sims_llm_llm)/len(sims_llm_llm)
+        print("Average similarity in this conversation (llm-llm) was:", str(avg_sims_llm_llm))
+
+        similarities_llm_llm.append(avg_sims_llm_llm)
+
+    print("Average Number of Conversation Turns:",str(sum(no_turns)/len(no_turns)))
+    print("Average Length of Conversations (characters):",str(sum(convo_chars)/len(convo_chars)))
+    print("Average similarity across all conversations (human-llm):",str(sum(similarities_human_llm)/len(similarities_human_llm)))
+    print("Average similarity across all conversations (llm-llm):",str(sum(similarities_llm_llm)/len(similarities_llm_llm)))
+
 
     all_results_dict.append(results)
 
