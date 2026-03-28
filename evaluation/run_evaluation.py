@@ -23,6 +23,7 @@ import os.path
 import time
 import random
 import pandas as pd
+import json
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -213,14 +214,17 @@ all_results.append(evaluation_starters)
 all_results_dict = []
 for agent,type in zip(agents, agent_type):
     results = {}
+    eddie_all_data = []
     start = time.time()
     result_row, convo_generated = run_evaluations(agent, type, evaluation_conversation_env, evaluation_starters, evaluation_action_depth, trials, context_list = human_prompts, human_descriptions = human_descriptions, results=results, index = list(range(start_index, end_index)), seed = seed, output_file=evaluation_output)
-    all_results.append(result_row)
     time_taken = time.time()-start
+    all_results.append(result_row)
     results["time_taken_for_agent_type"] = time_taken
     print("time taken for all trials:", time_taken)
     similarities_human_llm = []
+    std_similarities_human_llm = []
     similarities_llm_llm = []
+    std_similarities_llm_llm = []
     no_turns = []
     convo_chars = []
     for starters in convo_generated:
@@ -232,54 +236,93 @@ for agent,type in zip(agents, agent_type):
 
         no_turns.append(len(convo.full_convo))
         print("number of turns",no_turns)
-        
+
+        for x in range(len(convo.full_convo)):
+            print("Turn #",x)
+            print("Role ",convo.order[x])
+            print("Convo: ",convo.full_convo[x])
+
         avg_convo_chars = sum([len(x) for x in convo.full_convo]) / len(convo.full_convo)
         convo_chars.append(avg_convo_chars)
 
-        emb = []
-        for c in convo.full_convo:
+        emb_human = []
+        emb_llm = []
+        for c in range(len(convo.human_responses)-1):
             print("this is c:",c)
-            emb.append(embed_model.embed(c).cpu().detach().numpy())
+            print("this is human_c:",convo.human_responses[c])
+            print("this is llm_c:",convo.llm_responses[c])
 
-        print("embeddings:",emb)
+            human_c = conversation_state((convo.human_responses[c]), Conversation(convo.human_responses[c]))
+            human_c.depth = 1
+
+            llm_c = conversation_state((convo.llm_responses[c]), Conversation(convo.llm_responses[c]))
+            llm_c.depth = 1
+
+            emb_human.append(embed_model.embed(human_c.conversation).cpu().detach().numpy())
+            emb_llm.append(embed_model.embed(llm_c.conversation).cpu().detach().numpy())
 
         sims_human_llm = []
-        for e in range(1,len(emb),2):
-            human_response = emb[e-1]
-            action = emb[e]
+        for e in range(len(emb_human)):
+            human_response = emb_human[e]
+            action = emb_llm[e]
             dot_prod = np.dot(action, human_response)
             norm_action = np.linalg.norm(action)
             norm_human = np.linalg.norm(human_response)
             similarity = dot_prod / (norm_action * norm_human)
-            dist = 1 - similarity
-            sims_human_llm.append(dist)
+            sims_human_llm.append(similarity)
 
-        avg_sims_human_llm = sum(sims_human_llm)/len(sims_human_llm)
-        print("Average similarity in this conversation (human-llm) was:", str(avg_sims_human_llm))
+        avg_sims_human_llm = np.mean(sims_human_llm) #sum(sims_human_llm)/len(sims_human_llm)
+        std_sims_human_llm = np.std(sims_human_llm) 
         similarities_human_llm.append(avg_sims_human_llm)
+        std_similarities_human_llm.append(std_sims_human_llm)
+        print("Average similarity in this conversation (human-llm) was:", str(avg_sims_human_llm))
+        print("std similarity in this conversation (human-llm) was:", str(std_sims_human_llm))
 
         sims_llm_llm = []
-        for e in range(3,len(emb),2):
-            llm_1 = emb[e-2]
-            llm_2 = emb[e]
+        for e in range(1,len(emb_llm)):
+            llm_1 = emb_llm[e-1]
+            llm_2 = emb_llm[e]
             dot_prod = np.dot(llm_2, llm_1)
             norm_action = np.linalg.norm(llm_2)
             norm_human = np.linalg.norm(llm_1)
             similarity = dot_prod / (norm_action * norm_human)
-            dist = 1 - similarity
-            sims_llm_llm.append(dist)
+            sims_llm_llm.append(similarity)
 
-        avg_sims_llm_llm = sum(sims_llm_llm)/len(sims_llm_llm)
+        avg_sims_llm_llm = np.mean(sims_llm_llm) #sum(sims_llm_llm)/len(sims_llm_llm)
+        std_sims_llm_llm = np.std(sims_llm_llm) #sum(sims_llm_llm)/len(sims_llm_llm)
         print("Average similarity in this conversation (llm-llm) was:", str(avg_sims_llm_llm))
 
         similarities_llm_llm.append(avg_sims_llm_llm)
+        std_similarities_llm_llm.append(std_sims_llm_llm)
 
+        eddie_convo_data = {
+                "starters": str(starters),
+                "no_turns": int(len(convo.full_convo)),
+                "avg_chars": float(avg_convo_chars),
+                "avg_sims_human_llm": float(avg_sims_human_llm),
+                "avg_sims_llm_llm": float(avg_sims_llm_llm),
+                "raw_sims_human_llm": sims_human_llm,
+                "raw_sims_llm_llm": sims_llm_llm, # Can plot to see change in similarity over time
+                }
+        eddie_all_data.append(eddie_convo_data)
+
+    eddie_agent_out = {
+            "agent_name": str(agent),
+            "total_time": time_taken,
+            "conversations":eddie_all_data
+            }
+    eddie_output_file = f"multi_eval_results_{agent}.json"
+    with open(eddie_output_file, "w") as f:
+        json.dump(eddie_agent_out, f)
     print("Average Number of Conversation Turns:",str(sum(no_turns)/len(no_turns)))
+    print("STD Number of Conversation Turns:",str(np.std(no_turns)))
     print("Average Length of Conversations (characters):",str(sum(convo_chars)/len(convo_chars)))
-    print("Average similarity across all conversations (human-llm):",str(sum(similarities_human_llm)/len(similarities_human_llm)))
-    print("Average similarity across all conversations (llm-llm):",str(sum(similarities_llm_llm)/len(similarities_llm_llm)))
+    print("STD Length of Conversations (characters):",str(np.std(convo_chars)))
+    print("Average similarity across all conversations (human-llm):",str(np.mean(similarities_human_llm)))#str(sum(similarities_human_llm)/len(similarities_human_llm)))
+    print("Average similarity across all conversations (llm-llm):",str(np.mean(similarities_llm_llm)))#str(sum(similarities_llm_llm)/len(similarities_llm_llm)))
 
-
+    print("STD similarity across all conversations (human-llm):",str(np.std(std_similarities_human_llm)))#str(sum(similarities_human_llm)/len(similarities_human_llm)))
+    print("STD similarity across all conversations (llm-llm):",str(np.std(std_similarities_llm_llm)))#str(sum(similarities_llm_llm)/len(similarities_llm_llm)))
     all_results_dict.append(results)
 
 import lz4.frame

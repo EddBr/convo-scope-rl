@@ -8,7 +8,6 @@ from agent.Conversation import Conversation
 # The reward is the difference between the safe probability of the chat with the human response and the safe probability of the chat without the human response.
 class Llama_2_Guard_Reward(Base_Reward):
     def __init__(self, model = None, device_map : int = 0, random_projection : int | None = 4096, random_proj_seed = 42) -> None:
-        #name_or_path = "meta-llama/Meta-Llama-Guard-2-8B"
         name_or_path = "/home/s2289391/llama-guard-2-8b"
         #name_or_path = "/home/s2289391/llama-guard-3-1b"
         try:

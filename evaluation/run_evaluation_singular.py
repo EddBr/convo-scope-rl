@@ -132,8 +132,7 @@ def eval_similarities(a,b):
     norm_action = np.linalg.norm(action)
     norm_human = np.linalg.norm(human_response)
     similarity = dot_prod / (norm_action * norm_human)
-    dist = 1 - similarity
-    return dist
+    return similarity
 
 def eval_embeddings(convo):
     out = []
@@ -220,10 +219,13 @@ torch.manual_seed(seed)
 random.seed(seed)
 
 
+eddie_all_data = []
 avg_time_taken = 0
 avg_similarity = 0
 avg_length = 0
-
+max_length = -1
+min_length = 2_000_000
+responses = []
 embed_model = embedding_model_llama(model=None, cuda=torch.device(cuda_q_embedding))
 # create the mdp environment for evaluation
 evaluation_conversation_env = conversation_environment(human_eval, llm_agent, "", max_depth=evaluation_action_depth*2, reward_function=reward_function)
@@ -242,11 +244,16 @@ for eval_start in evaluation_starters:
 
         initial_state = conversation_state((eval_start), Conversation(eval_start))
         initial_state.depth = 1
-
         starting_convo_semantics = embed_model.embed(initial_state.conversation).cpu().detach().numpy()
 
-        avg_length += len(best_response)
+        char_length = len(best_response)
+        avg_length += char_length
+        if max_length < char_length:
+            max_length = char_length
+        if min_length > char_length:
+            min_length = char_length
         
+        responses.append(best_response)
         best_response_state = conversation_state((best_response), Conversation(best_response))
         best_response_state.depth = 1
 
@@ -257,6 +264,24 @@ for eval_start in evaluation_starters:
         print("Similarity:", similarities)
         avg_similarity += similarities
 
+        eddie_single_out = {
+                "agent": str(agent),
+                "starter": eval_start,
+                "time_taken": float(time_taken),
+                "similarity": float(similarities),
+                "char_len": int(len(best_response))
+                }
+        eddie_all_data.append(eddie_single_out)
+
+import json
+with open(f"single_results_{agents[0]}.json") as f:
+    json.dump(eddie_all_data, f)
+
+print("###RESULTS###")
+for i in range(len(responses)):
+    print("Response #",str(i))
+    print(responses[i])
+
 print ("Number of Conversations (n): ",len(evaluation_starters))
 
 avg_time_taken = avg_time_taken / len(evaluation_starters)
@@ -265,6 +290,7 @@ print("Average Time Taken: ",avg_time_taken)
 avg_similarity = avg_similarity / len(evaluation_starters)
 print("Average Similarity: ",avg_similarity)
 
-
 avg_similarity = avg_length / len(evaluation_starters)
 print("Average Length (chars): ",avg_length)
+print("Min Length (chars): ",min_length)
+print("Max Length (chars): ",max_length)

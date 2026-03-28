@@ -23,14 +23,15 @@ class MLPRegression(nn.Module):
         return x
 
 class LLM_Judge_Reward(Base_Reward):
-    def __init__(self, path_to_model="reward/judge_model.pth", device_map=0) -> None:
+    def __init__(self, path_to_model="reward/judge_model_final.pth", device_map=0) -> None:
+    #def __init__(self, path_to_model="reward/judge_model.pth", device_map=0) -> None:
         super().__init__()
         print(f"Loading embedding length model on device {device_map}...")
         self.model = MLPRegression()
         self.model.load_state_dict(torch.load(path_to_model, map_location=torch.device(device_map)))
     def get_reward(self, prev_state : Conversation, action : str, human_response : str) -> float:
         try:
-            return self.model(torch.FloatTensor(action))
+            return self.model(torch.FloatTensor(action)).item()
         except:
-            return 3.5
+            return torch.FloatTensor([3.5])
 
