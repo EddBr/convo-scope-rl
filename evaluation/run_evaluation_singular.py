@@ -99,8 +99,12 @@ if os.path.isfile(file_name):
     end_index = min(end_index, len(evaluation_starters)) if end_index > 0 else len(evaluation_starters)
     evaluation_starters = evaluation_starters[start_index: end_index]
 elif os.path.isdir(evaluation_data):
+#    tmp = load_from_disk(evaluation_data)
+#    evaluation_starters = [i[0].strip() for i in tmp["conversations"]]
+#    end_index = min(end_index, len(evaluation_starters)) if end_index > 0 else len(evaluation_starters)
+#    evaluation_starters = evaluation_starters[start_index: end_index]
     tmp = load_from_disk(evaluation_data)
-    evaluation_starters = [i[0].strip() for i in tmp["conversations"]]
+    evaluation_starters = [i.strip() for i in tmp["instruction"]]
     end_index = min(end_index, len(evaluation_starters)) if end_index > 0 else len(evaluation_starters)
     evaluation_starters = evaluation_starters[start_index: end_index]
     if args["use_icl"]:
@@ -267,6 +271,7 @@ for eval_start in evaluation_starters:
         eddie_single_out = {
                 "agent": str(agent),
                 "starter": eval_start,
+                "response": str(best_response),
                 "time_taken": float(time_taken),
                 "similarity": float(similarities),
                 "char_len": int(len(best_response))
@@ -274,7 +279,7 @@ for eval_start in evaluation_starters:
         eddie_all_data.append(eddie_single_out)
 
 import json
-with open(f"single_results_{agents[0]}.json") as f:
+with open(f"single_results_{agent_}_RESOLUTION_FINAL_{str(runtime_mcts_timeout)}s_100.json", "w") as f:
     json.dump(eddie_all_data, f)
 
 print("###RESULTS###")

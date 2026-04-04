@@ -34,6 +34,19 @@ import re
 import logging
 [logging.getLogger(name).setLevel(logging.ERROR) for name in logging.root.manager.loggerDict if "transformers" in logging.getLogger(name).name.lower()]
 
+
+
+import subprocess
+
+def get_nvidia_smi():
+    try:
+        output = subprocess.check_output(['nvidia-smi']).decode('utf-8')
+        print(output)
+    except FileNotFoundError:
+        print("nvidia-smi not found. Are NVIDIA drivers installed?")
+    except subprocess.CalledProcessError as e:
+        print(f"Error calling nvidia-smi: {e}")
+
 # Parse command line arguments
 parser = ArgumentParser()
 parser.add_argument("--evaluation_data", help="evaluation_data", default="evaluation_starters_simple.txt")
@@ -226,6 +239,8 @@ for agent,type in zip(agents, agent_type):
     similarities_llm_llm = []
     std_similarities_llm_llm = []
     no_turns = []
+    convo_human_chars = []
+    convo_llm_chars = []
     convo_chars = []
     for starters in convo_generated:
         print("convo_generated is Conversation?",isinstance(convo_generated, Conversation))
@@ -244,6 +259,14 @@ for agent,type in zip(agents, agent_type):
 
         avg_convo_chars = sum([len(x) for x in convo.full_convo]) / len(convo.full_convo)
         convo_chars.append(avg_convo_chars)
+        human_chars = 0
+        llm_chars = 0
+        for i in range(len(convo.full_convo)):
+            if i % 2 == 0:
+                llm_chars += len(convo.full_convo[i])
+            else:
+                human_chars += len(convo.full_convo[i])
+
 
         emb_human = []
         emb_llm = []
@@ -288,6 +311,17 @@ for agent,type in zip(agents, agent_type):
             similarity = dot_prod / (norm_action * norm_human)
             sims_llm_llm.append(similarity)
 
+
+        sims_human_human = []
+        for e in range(1,len(emb_human)):
+            llm_1 = emb_human[e-1]
+            llm_2 = emb_human[e]
+            dot_prod = np.dot(llm_2, llm_1)
+            norm_action = np.linalg.norm(llm_2)
+            norm_human = np.linalg.norm(llm_1)
+            similarity = dot_prod / (norm_action * norm_human)
+            sims_human_human.append(similarity)
+
         avg_sims_llm_llm = np.mean(sims_llm_llm) #sum(sims_llm_llm)/len(sims_llm_llm)
         std_sims_llm_llm = np.std(sims_llm_llm) #sum(sims_llm_llm)/len(sims_llm_llm)
         print("Average similarity in this conversation (llm-llm) was:", str(avg_sims_llm_llm))
@@ -295,23 +329,30 @@ for agent,type in zip(agents, agent_type):
         similarities_llm_llm.append(avg_sims_llm_llm)
         std_similarities_llm_llm.append(std_sims_llm_llm)
 
+        floated_human_llm = [float(x) for x in sims_human_llm]
+        floated_llm_llm = [float(x) for x in sims_llm_llm]
+        floated_human_human = [float(x) for x in sims_human_human]
+
         eddie_convo_data = {
                 "starters": str(starters),
                 "no_turns": int(len(convo.full_convo)),
                 "avg_chars": float(avg_convo_chars),
+                "avg_human_chars": float(human_chars),
+                "avg_llm_chars": float(llm_chars),
                 "avg_sims_human_llm": float(avg_sims_human_llm),
                 "avg_sims_llm_llm": float(avg_sims_llm_llm),
-                "raw_sims_human_llm": sims_human_llm,
-                "raw_sims_llm_llm": sims_llm_llm, # Can plot to see change in similarity over time
+                "raw_sims_human_llm": floated_human_llm,
+                "raw_sims_human_human": floated_human_human,
+                "raw_sims_llm_llm": floated_llm_llm, # Can plot to see change in similarity over time
                 }
         eddie_all_data.append(eddie_convo_data)
 
     eddie_agent_out = {
             "agent_name": str(agent),
-            "total_time": time_taken,
+            "total_time": float(time_taken),
             "conversations":eddie_all_data
             }
-    eddie_output_file = f"multi_eval_results_{agent}.json"
+    eddie_output_file = f"multi_results_{agent_}_{len(evaluation_starters)}_NEW.json"
     with open(eddie_output_file, "w") as f:
         json.dump(eddie_agent_out, f)
     print("Average Number of Conversation Turns:",str(sum(no_turns)/len(no_turns)))
